@@ -1,88 +1,110 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Configuración de Estilo Profesional
-st.set_page_config(page_title="Dashboard Tiro al Plato", layout="wide")
+# ==========================================
+# CONFIGURACIÓN PERSONALIZABLE
+# ==========================================
+TITULO_TIRADA = "I TIRADA GRAN PREMIO DE ESPAÑA"
+FECHA_TIRADA = "12 de Abril de 2026"
+URL_BANNER_TOP = "https://via.placeholder.com/1200x200.png?text=TU+PUBLICIDAD+AQUÍ" # Cambia por tu URL
+URL_BANNER_SIDE = "https://via.placeholder.com/300x600.png?text=ANUNCIO+LATERAL"
 
-# CSS para mejorar la apariencia de los botones
-st.markdown("""
+# ==========================================
+# CONFIGURACIÓN DE PÁGINA Y ESTILO
+# ==========================================
+st.set_page_config(page_title=TITULO_TIRADA, layout="wide")
+
+# CSS Avanzado para colores y tabla a pantalla completa
+st.markdown(f"""
     <style>
-    div.stButton > button {
+    /* Estilo para los botones de categoría */
+    div.stButton > button {{
         width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #f0f2f6;
-    }
-    div.stButton > button:hover {
+        border-radius: 20px;
+        border: 2px solid #e0e0e0;
+        background-color: white;
+        font-weight: bold;
+        transition: 0.3s;
+    }}
+    div.stButton > button:hover {{
         border-color: #ff4b4b;
+        background-color: #fff5f5;
         color: #ff4b4b;
-    }
+    }}
+    /* Colores para las celdas */
+    .puntos-25 {{ color: #ff0000; font-weight: bold; }}
+    .puntos-24 {{ color: #008000; font-weight: bold; }}
+    
+    /* Hacer que la tabla use todo el ancho y no tenga scroll interno raro */
+    .stDataFrame {{ width: 100%; }}
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🏆 Panel de Control: Resultados en Directo")
+# Banner Superior
+st.image(URL_BANNER_TOP, use_container_width=True)
+
+st.title(f"🏆 {TITULO_TIRADA}")
+st.subheader(f"📅 {FECHA_TIRADA}")
 
 try:
-    # 2. Carga y Preparación de Datos
+    # 3. CARGA DE DATOS
     df = pd.read_excel("1ª Tirada Año2026.xlsm", sheet_name="INSCRIPCIONES", header=2)
     df.columns = df.columns.str.strip()
     df = df.dropna(subset=["NOMBRE Y APELLIDOS"])
     
-    # Convertir a numérico para ordenación técnica
+    # Limpiar numéricos
     cols_puntos = ["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"]
     for col in cols_puntos:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # 3. Lógica de Menú de Categorías (Botones)
-    if 'cat_sel' not in st.session_state:
-        st.session_state.cat_sel = "GENERAL"
-
-    col1, col2, col3, col4, col5 = st.columns(5)
+    # 4. BOTONES DE CATEGORÍA (GENERAL + 1,2,3,4)
+    if 'cat' not in st.session_state: st.session_state.cat = "GENERAL"
     
-    with col1:
-        if st.button("🌐 GENERAL"): st.session_state.cat_sel = "GENERAL"
-    with col2:
-        if st.button("🎯 CATEGORÍA 1"): st.session_state.cat_sel = "1"
-    with col3:
-        if st.button("🎯 CATEGORÍA 2"): st.session_state.cat_sel = "2"
-    with col4:
-        if st.button("🎯 CATEGORÍA 3"): st.session_state.cat_sel = "3"
-    with col5:
-        if st.button("🎯 CATEGORÍA 4"): st.session_state.cat_sel = "4"
+    cols_btn = st.columns(5)
+    for i, nombre in enumerate(["GENERAL", "1", "2", "3", "4"]):
+        if cols_btn[i].button(f"🔘 {nombre}"):
+            st.session_state.cat = nombre
 
-    # 4. Filtros Laterales (Subcategorías)
-    st.sidebar.header("Filtros Avanzados")
-    sub_opciones = ["Todos", "Dama", "Junior", "Veterano"]
-    sub_sel = st.sidebar.multiselect("Subcategorías:", sub_opciones, default="Todos")
+    # 5. SIDEBAR: SUBCATEGORÍAS Y PUBLICIDAD
+    st.sidebar.image(URL_BANNER_SIDE, caption="Patrocinador Oficial")
+    st.sidebar.header("Filtrar por Especialidad")
+    
+    # Mapeo exacto para evitar el fallo de "SUBC"
+    mapeo_subc = {"Dama": "DAM", "Junior": "JUN", "Veterano": "VET", "Senior": "SR"}
+    seleccion_sub = st.sidebar.multiselect("Subcategorías:", list(mapeo_subc.keys()))
 
-    # 5. Aplicar Filtrado Jerárquico
-    # Filtrar por Categoría
-    if st.session_state.cat_sel != "GENERAL":
-        df_filtrado = df[df["CAT. FU"].astype(str).str.contains(st.session_state.cat_sel)]
-    else:
-        df_filtrado = df.copy()
+    # 6. FILTRADO LÓGICO
+    df_f = df.copy()
+    
+    # Filtro Categoría
+    if st.session_state.cat != "GENERAL":
+        df_f = df_f[df_f["CAT. FU"].astype(str).str.contains(st.session_state.cat)]
 
-    # Filtrar por Subcategoría (mapeando con tu columna SUBC)
-    if "Todos" not in sub_sel and sub_sel:
-        # Mapeo de términos para que coincidan con los datos del Excel
-        mapeo = {"Dama": "DAM", "Junior": "JUN", "Veterano": "VET"}
-        terminos_busqueda = [mapeo.get(s, s) for s in sub_sel]
-        df_filtrado = df_filtrado[df_filtrado["SUBC"].isin(terminos_busqueda)]
+    # Filtro Subcategoría (Corregido)
+    if seleccion_sub:
+        siglas = [mapeo_subc[s] for s in seleccion_sub]
+        df_f = df_f[df_f["SUBC"].isin(siglas)]
 
-    # 6. Ordenación de Competición
-    df_sorted = df_filtrado.sort_values(
+    # 7. ORDENACIÓN Y RANKING
+    df_f = df_f.sort_values(
         by=["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"],
         ascending=[False, False, False, False, False, True]
-    )
+    ).reset_index(drop=True)
+    df_f.insert(0, "Pos", df_f.index + 1)
 
-    # Añadir ranking visual
-    df_sorted.insert(0, "RANK", range(1, len(df_sorted) + 1))
+    # 8. ESTILO DE CELDAS (25 Rojo, 24 Verde)
+    def highlight_scores(val):
+        if val == 25: return 'color: red; font-weight: bold'
+        if val == 24: return 'color: green; font-weight: bold'
+        return ''
 
-    # 7. Visualización Final
-    st.subheader(f"Mostrando: {st.session_state.cat_sel}")
-    
-    columnas_finales = ["RANK", "DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "SUBC", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
-    st.dataframe(df_sorted[columnas_finales], use_container_width=True, hide_index=True)
+    # Seleccionamos y formateamos columnas
+    columnas_web = ["Pos", "DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "SUBC", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
+    df_display = df_f[columnas_web]
+
+    # Aplicamos el estilo
+    st.subheader(f"📍 Clasificación: {st.session_state.cat}")
+    st.table(df_display.style.applymap(highlight_scores, subset=["S-1", "S-2", "S-3", "S-4", "TOTAL"]))
 
 except Exception as e:
-    st.error(f"Error en el dashboard: {e}")
+    st.error(f"Error al cargar la web: {e}")
