@@ -4,7 +4,7 @@ import pandas as pd
 # ==========================================
 # CONFIGURACIÓN PERSONALIZABLE
 # ==========================================
-TITULO_TIRADA = "I TIRADA GRAN PREMIO DE ESPAÑA"
+TITULO_TIRADA = "1ª TIRADA DEL AÑO 2026"
 FECHA_TIRADA = "12 de Abril de 2026"
 URL_BANNER_TOP = "https://via.placeholder.com/1200x200.png?text=TU+PUBLICIDAD+AQUÍ"
 
