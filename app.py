@@ -75,7 +75,7 @@ try:
 
     # 5. ORDENACIÓN OFICIAL
     df_f = df_f.sort_values(
-        by=["TOTAL", "S4", "S3", "S2", "S1", "DORSAL"],
+        by=["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"],
         ascending=[False, False, False, False, False, True]
     ).reset_index(drop=True)
     df_f.insert(0, "Pos", range(1, len(df_f) + 1))
@@ -85,7 +85,7 @@ try:
     
     # Iniciamos la tabla
     html = '<table class="puntos-table"><thead><tr>'
-    columnas = ["Pos", "DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "SUBC", "S1", "S2", "S3", "S4", "TOTAL"]
+    columnas = ["Pos", "DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "SUBC", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
     for col in columnas:
         html += f'<th>{col}</th>'
     html += '</tr></thead><tbody>'
@@ -96,7 +96,7 @@ try:
             val = row[col]
             # Aplicar colores a los resultados
             style_class = ""
-            if col in ["S1", "S2", "S3", "S4", "TOTAL"]:
+            if col in ["S-1", "S-2", "S-3", "S-4", "TOTAL"]:
                 if val == 25: style_class = ' class="text-25"'
                 elif val == 24: style_class = ' class="text-24"'
             
