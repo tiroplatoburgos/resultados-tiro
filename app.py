@@ -43,7 +43,7 @@ try:
     df = df.dropna(subset=["NOMBRE Y APELLIDOS"])
 
     # CONVERSIÓN A ENTEROS (Adiós a los decimales .0)
-    cols_num = ["CAT. FU", "DORSAL", "S1", "S2", "S3", "S4", "TOTAL"]
+    cols_num = ["CAT. FU", "DORSAL", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
     for col in cols_num:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
 
