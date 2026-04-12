@@ -1,50 +1,88 @@
 import streamlit as st
 import pandas as pd
 
-# Configuración visual
-st.set_page_config(page_title="Resultados Tiro al Plato", layout="wide")
-st.title("🏆 Resultados en Directo - 1ª Tirada 2026")
+# 1. Configuración de Estilo Profesional
+st.set_page_config(page_title="Dashboard Tiro al Plato", layout="wide")
+
+# CSS para mejorar la apariencia de los botones
+st.markdown("""
+    <style>
+    div.stButton > button {
+        width: 100%;
+        border-radius: 5px;
+        height: 3em;
+        background-color: #f0f2f6;
+    }
+    div.stButton > button:hover {
+        border-color: #ff4b4b;
+        color: #ff4b4b;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("🏆 Panel de Control: Resultados en Directo")
 
 try:
-    # 1. LEER DATOS: Usamos header=2 porque los nombres están en la 3ª fila del Excel
+    # 2. Carga y Preparación de Datos
     df = pd.read_excel("1ª Tirada Año2026.xlsm", sheet_name="INSCRIPCIONES", header=2)
-    
-    # Limpiar nombres de columnas (quitar espacios raros)
     df.columns = df.columns.str.strip()
-
-    # 2. LIMPIEZA: Solo tiradores con nombre y convertir puntos a números para poder ordenar
     df = df.dropna(subset=["NOMBRE Y APELLIDOS"])
-    columnas_puntos = ["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"]
-    for col in columnas_puntos:
+    
+    # Convertir a numérico para ordenación técnica
+    cols_puntos = ["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"]
+    for col in cols_puntos:
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # 3. LÓGICA DE DESEMPATE: 
-    # Ordena por TOTAL(Desc), luego S-4(Desc), S-3(Desc), S-2(Desc), S-1(Desc)
-    # Y finalmente DORSAL(Asc) para que el primero inscrito gane en empate total.
-    df_sorted = df.sort_values(
+    # 3. Lógica de Menú de Categorías (Botones)
+    if 'cat_sel' not in st.session_state:
+        st.session_state.cat_sel = "GENERAL"
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        if st.button("🌐 GENERAL"): st.session_state.cat_sel = "GENERAL"
+    with col2:
+        if st.button("🎯 CATEGORÍA 1"): st.session_state.cat_sel = "1"
+    with col3:
+        if st.button("🎯 CATEGORÍA 2"): st.session_state.cat_sel = "2"
+    with col4:
+        if st.button("🎯 CATEGORÍA 3"): st.session_state.cat_sel = "3"
+    with col5:
+        if st.button("🎯 CATEGORÍA 4"): st.session_state.cat_sel = "4"
+
+    # 4. Filtros Laterales (Subcategorías)
+    st.sidebar.header("Filtros Avanzados")
+    sub_opciones = ["Todos", "Dama", "Junior", "Veterano"]
+    sub_sel = st.sidebar.multiselect("Subcategorías:", sub_opciones, default="Todos")
+
+    # 5. Aplicar Filtrado Jerárquico
+    # Filtrar por Categoría
+    if st.session_state.cat_sel != "GENERAL":
+        df_filtrado = df[df["CAT. FU"].astype(str).str.contains(st.session_state.cat_sel)]
+    else:
+        df_filtrado = df.copy()
+
+    # Filtrar por Subcategoría (mapeando con tu columna SUBC)
+    if "Todos" not in sub_sel and sub_sel:
+        # Mapeo de términos para que coincidan con los datos del Excel
+        mapeo = {"Dama": "DAM", "Junior": "JUN", "Veterano": "VET"}
+        terminos_busqueda = [mapeo.get(s, s) for s in sub_sel]
+        df_filtrado = df_filtrado[df_filtrado["SUBC"].isin(terminos_busqueda)]
+
+    # 6. Ordenación de Competición
+    df_sorted = df_filtrado.sort_values(
         by=["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"],
         ascending=[False, False, False, False, False, True]
     )
 
-    # 4. FILTRO DE CATEGORÍA
-    # Convertimos a texto para que el filtro no falle con los números de categoría
-    df_sorted["CAT. FU"] = df_sorted["CAT. FU"].astype(str).str.replace(".0", "", regex=False)
-    categorias = ["TODAS"] + sorted(df_sorted["CAT. FU"].unique().tolist())
-    
-    filtro = st.sidebar.selectbox("Filtrar por Categoría:", categorias)
+    # Añadir ranking visual
+    df_sorted.insert(0, "RANK", range(1, len(df_sorted) + 1))
 
-    if filtro != "TODAS":
-        df_final = df_sorted[df_sorted["CAT. FU"] == filtro]
-    else:
-        df_final = df_sorted
-
-    # 5. MOSTRAR RESULTADOS
-    # Añadimos una columna de posición real basada en el orden
-    df_final.insert(0, "RANK", range(1, len(df_final) + 1))
+    # 7. Visualización Final
+    st.subheader(f"Mostrando: {st.session_state.cat_sel}")
     
-    columnas_web = ["RANK", "DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
-    st.dataframe(df_final[columnas_web], use_container_width=True, hide_index=True)
+    columnas_finales = ["RANK", "DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "SUBC", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
+    st.dataframe(df_sorted[columnas_finales], use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.error(f"Error técnico: {e}")
-    st.info("Asegúrate de que el archivo se llame exactamente '1ª Tirada Año2026.xlsm'")
+    st.error(f"Error en el dashboard: {e}")
