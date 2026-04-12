@@ -1,39 +1,50 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Configuración de la página
+# Configuración visual
 st.set_page_config(page_title="Resultados Tiro al Plato", layout="wide")
-st.title("🏆 Resultados en Directo")
+st.title("🏆 Resultados en Directo - 1ª Tirada 2026")
 
-# 2. Carga de datos con manejo de errores
 try:
-    # Leemos el archivo. El nombre debe ser EXACTO al que subiste a GitHub
-    df = pd.read_excel("1ª Tirada Año2026.xlsm", sheet_name="INSCRIPCIONES", skiprows=1)
+    # 1. LEER DATOS: Usamos header=2 porque los nombres están en la 3ª fila del Excel
+    df = pd.read_excel("1ª Tirada Año2026.xlsm", sheet_name="INSCRIPCIONES", header=2)
     
-    # Limpiamos nombres de columnas por si tienen espacios vacíos
+    # Limpiar nombres de columnas (quitar espacios raros)
     df.columns = df.columns.str.strip()
 
-    # Quitamos filas donde no haya nombre de tirador
+    # 2. LIMPIEZA: Solo tiradores con nombre y convertir puntos a números para poder ordenar
     df = df.dropna(subset=["NOMBRE Y APELLIDOS"])
+    columnas_puntos = ["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"]
+    for col in columnas_puntos:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # 3. Lógica de Ordenación (Total > S-4 > S-3 > S-2 > S-1 > Dorsal menor)
-    df_ordenado = df.sort_values(
-        by=["TOTAL", "S-1", "S-2", "S-3", "S-4", "DORSAL"],
+    # 3. LÓGICA DE DESEMPATE: 
+    # Ordena por TOTAL(Desc), luego S-4(Desc), S-3(Desc), S-2(Desc), S-1(Desc)
+    # Y finalmente DORSAL(Asc) para que el primero inscrito gane en empate total.
+    df_sorted = df.sort_values(
+        by=["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"],
         ascending=[False, False, False, False, False, True]
     )
 
-    # 4. Filtro por Categoría
-    categorias = ["TODAS"] + sorted([str(c) for c in df["CAT. FU"].unique() if pd.notna(c)])
-    filtro = st.sidebar.selectbox("Selecciona Categoría", categorias)
+    # 4. FILTRO DE CATEGORÍA
+    # Convertimos a texto para que el filtro no falle con los números de categoría
+    df_sorted["CAT. FU"] = df_sorted["CAT. FU"].astype(str).str.replace(".0", "", regex=False)
+    categorias = ["TODAS"] + sorted(df_sorted["CAT. FU"].unique().tolist())
+    
+    filtro = st.sidebar.selectbox("Filtrar por Categoría:", categorias)
 
     if filtro != "TODAS":
-        df_ordenado = df_ordenado[df_ordenado["CAT. FU"].astype(str) == filtro]
+        df_final = df_sorted[df_sorted["CAT. FU"] == filtro]
+    else:
+        df_final = df_sorted
 
-    # 5. Mostrar tabla
-    # Seleccionamos solo las columnas importantes para que se vea limpio
-    columnas_mostrar = ["DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
-    st.dataframe(df_ordenado[columnas_mostrar], use_container_width=True, hide_index=True)
+    # 5. MOSTRAR RESULTADOS
+    # Añadimos una columna de posición real basada en el orden
+    df_final.insert(0, "RANK", range(1, len(df_final) + 1))
+    
+    columnas_web = ["RANK", "DORSAL", "NOMBRE Y APELLIDOS", "CAT. FU", "S-1", "S-2", "S-3", "S-4", "TOTAL"]
+    st.dataframe(df_final[columnas_web], use_container_width=True, hide_index=True)
 
 except Exception as e:
-    st.error(f"Error al cargar los datos: {e}")
-    st.info("Asegúrate de que el archivo '1ª Tirada Año2026.xlsm' esté en la misma carpeta que este código.")
+    st.error(f"Error técnico: {e}")
+    st.info("Asegúrate de que el archivo se llame exactamente '1ª Tirada Año2026.xlsm'")
