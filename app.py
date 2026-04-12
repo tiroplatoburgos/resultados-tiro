@@ -7,7 +7,7 @@ import pandas as pd
 TITULO_TIRADA = "I TIRADA GRAN PREMIO DE ESPAÑA"
 FECHA_TIRADA = "12 de Abril de 2026"
 URL_BANNER_TOP = "https://via.placeholder.com/1200x200.png?text=TU+PUBLICIDAD+AQUÍ" # Cambia por tu URL
-URL_BANNER_SIDE = "https://via.placeholder.com/300x600.png?text=ANUNCIO+LATERAL"
+URL_BANNER_SIDE = "https://tiroolimpicoburgos.es/wp-content/uploads/2022/12/cropped-logo.png"
 
 # ==========================================
 # CONFIGURACIÓN DE PÁGINA Y ESTILO
