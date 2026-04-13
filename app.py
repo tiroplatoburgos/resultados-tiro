@@ -1,123 +1,160 @@
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 
-# ==========================================
-# 1. CONFIGURACIÓN Y ESTILO PROFESIONAL
-# ==========================================
-st.set_page_config(page_title="Resultados Tiro al Plato", layout="wide")
+# 1. CONFIGURACIÓN Y ESTILO
+st.set_page_config(page_title="Resultados Tiro - En Directo", layout="wide")
 
-# CSS personalizado para botones de distintos tamaños y colores
 st.markdown("""
     <style>
-    /* Botones de Categoría (Grandes) */
+    /* Estilo para los botones de categorías */
     .stButton > button {
         width: 100%;
-        border-radius: 10px;
+        border-radius: 5px;
         font-weight: bold;
     }
-    /* Estilo específico para subcategorías (botones más pequeños/discretos) */
-    div[data-testid="stHorizontalBlock"] > div:nth-child(n) .stButton > button {
-        font-size: 14px;
-        height: 2.5em;
+    /* Estilo para subcategorías (botones más pequeños) */
+    div[data-testid="column"] .stButton > button {
+        height: 25px;
+        font-size: 12px;
+        padding: 0px;
     }
-    
-    /* Colores en la tabla */
-    .text-25 { color: #ff0000; font-weight: bold; }
-    .text-24 { color: #008000; font-weight: bold; }
-    
-    /* Tabla sin bordes y limpia */
-    table { width: 100%; border-collapse: collapse; }
-    th { background-color: #1f4e78; color: white; padding: 10px; text-align: left; }
-    td { padding: 8px; border-bottom: 1px solid #eee; }
-    tr:nth-child(even) { background-color: #f2f2f2; }
     </style>
 """, unsafe_allow_html=True)
 
-# Variables de Sesión para mantener los filtros
-if 'cat_sel' not in st.session_state: st.session_state.cat_sel = "GENERAL"
-if 'sub_sel' not in st.session_state: st.session_state.sub_sel = "TODOS"
+# --- BANNERS DE PUBLICIDAD ---
+# Cambia 'publicidad/banner1.png' por el nombre real de tus archivos en GitHub
+col_b1, col_b2, col_b3 = st.columns([1, 2, 1])
+with col_b2:
+    try:
+        st.image("publicidad/banner_principal.png", use_container_width=True) # Banner central
+    except:
+        st.info("Sube tu banner a la carpeta 'publicidad' para verlo aquí")
 
-st.title("🏆 Resultados en Directo")
-st.subheader(f"Filtro activo: {st.session_state.cat_sel} / {st.session_state.sub_sel}")
-
-# ==========================================
-# 2. BLOQUE DE BOTONES (CATEGORÍAS Y SUBCATEGORÍAS)
-# ==========================================
-
-# Fila 1: Categorías Principales
-cols1 = st.columns(5)
-btns_cat = ["GENERAL", "1ª CAT", "2ª CAT", "3ª CAT", "4ª CAT"]
-for i, cat in enumerate(btns_cat):
-    if cols1[i].button(cat, type="primary" if st.session_state.cat_sel in cat else "secondary"):
-        st.session_state.cat_sel = cat
-        st.session_state.sub_sel = "TODOS" # Reset subcat al cambiar categoría
-
-# Fila 2: Subcategorías (Más pequeños)
-st.write("---") # Separador visual fino
-cols2 = st.columns(6)
-btns_sub = ["TODOS", "DAMAS", "JUNIOR", "VETERANO", "SENIOR", "ADAPTADO"]
-mapeo_sub = {"TODOS": "TODOS", "DAMAS": "DAM", "JUNIOR": "JUN", "VETERANO": "VET", "SENIOR": "SR", "ADAPTADO": "ADA"}
-
-for i, sub in enumerate(btns_sub):
-    if cols2[i].button(sub, use_container_width=True):
-        st.session_state.sub_sel = sub
-
-# ==========================================
-# 3. PROCESAMIENTO DE DATOS
-# ==========================================
+# 2. CARGA DE DATOS
 try:
-    # Carga de datos (ajustado a tu Excel "RESULTADOS WEB.xlsm")
-    df = pd.read_excel("RESULTADOS WEB.xlsm", sheet_name="INSCRIPCIONES", header=2)
+    df = pd.read_excel("1ª Tirada Año2026.xlsm", sheet_name="INSCRIPCIONES", header=2)
     df.columns = df.columns.str.strip()
     df = df.dropna(subset=["NOMBRE Y APELLIDOS"])
-
-    # Conversión a enteros para evitar decimales (.0)
-    for col in ["DORSAL", "TOTAL", "S-1", "S-2", "S-3", "S-4"]:
-        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
-
-    # --- FILTRADO ---
-    df_f = df.copy()
     
-    # Filtro Categoría
-    if st.session_state.cat_sel != "GENERAL":
-        # Extraemos el número del botón (ej: "2ª CAT" -> "2")
-        num_cat = st.session_state.cat_sel[0]
-        df_f = df_f[df_f["CAT. FU"].astype(str).str.contains(num_cat)]
+    # Convertir a numérico para ordenación
+    cols_puntos = ["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"]
+    for col in cols_puntos:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # Filtro Subcategoría
-    if st.session_state.sub_sel != "TODOS":
-        sigla = mapeo_sub[st.session_state.sub_sel]
-        df_f = df_f[df_f["SUBC"].astype(str).str.contains(sigla)]
-
-    # --- ORDENACIÓN (Lógica de desempate) ---
-    df_f = df_f.sort_values(
+    # LÓGICA DE ORDENACIÓN (Reglamento)
+    df_sorted = df.sort_values(
         by=["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"],
         ascending=[False, False, False, False, False, True]
     )
 
-    # --- RENDERIZADO DE TABLA HTML (Para colores 24 y 25) ---
-    html = """<table><thead><tr>
-                <th>POS</th><th>DORSAL</th><th>NOMBRE Y APELLIDOS</th><th>CAT</th><th>SUBC</th>
-                <th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>TOTAL</th>
-              </tr></thead><tbody>"""
+    # 3. FILTROS (Categorías y Subcategorías)
+    if 'cat' not in st.session_state: st.session_state.cat = "GENERAL"
+    if 'sub' not in st.session_state: st.session_state.sub = "TODOS"
 
-    for i, (_, row) in enumerate(df_f.iterrows()):
-        pos = i + 1
-        html += f"<tr><td>{pos}</td><td>{row['DORSAL']}</td><td>{row['NOMBRE Y APELLIDOS']}</td>"
-        html += f"<td>{row['CAT. FU']}</td><td>{row['SUBC']}</td>"
+    # Fila de Categorías (Botones grandes)
+    st.write("### Categorías")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1: 
+        if st.button("GENERAL"): st.session_state.cat = "GENERAL"
+    with c2: 
+        if st.button("CATEGORÍA 1"): st.session_state.cat = "1"
+    with c3: 
+        if st.button("CATEGORÍA 2"): st.session_state.cat = "2"
+    with c4: 
+        if st.button("CATEGORÍA 3"): st.session_state.cat = "3"
+    with c5: 
+        if st.button("CATEGORÍA 4"): st.session_state.cat = "4"
+
+    # Fila de Subcategorías (Botones pequeños debajo)
+    st.write("###### Subcategorías")
+    s1, s2, s3, s4, s5 = st.columns(5)
+    with s1: 
+        if st.button("Damas", key="b_dama"): st.session_state.sub = "DAM"
+    with s2: 
+        if st.button("Junior", key="b_jr"): st.session_state.sub = "JR"
+    with s3: 
+        if st.button("Veteranos", key="b_vet"): st.session_state.sub = "VET"
+    with s4: 
+        if st.button("Adaptados", key="b_ad"): st.session_state.sub = "ADAPT"
+    with s5: 
+        if st.button("Limpiar Filtros", key="b_clear"): 
+            st.session_state.cat = "GENERAL"
+            st.session_state.sub = "TODOS"
+
+    # APLICAR FILTROS
+    df_filtrado = df_sorted.copy()
+    if st.session_state.cat != "GENERAL":
+        df_filtrado = df_filtrado[df_filtrado["CAT. FU"].astype(str).str.contains(st.session_state.cat)]
+    if st.session_state.sub != "TODOS":
+        df_filtrado = df_filtrado[df_filtrado["SUBC"].astype(str).str.contains(st.session_state.sub)]
+
+    # 4. PREPARAR EL TABLERO (Podio + Scroll)
+    # Separamos los 3 primeros del resto
+    podio = df_filtrado.head(3)
+    resto = df_filtrado.iloc[3:]
+
+    # Generamos el HTML para la tabla con Scroll Automático
+    def generar_html_tabla(df_podio, df_resto):
+        # Filas del Podio
+        filas_podio = ""
+        for i, r in df_podio.iterrows():
+            # Color oro, plata, bronce para los 3 primeros
+            color = "#FFD700" if len(filas_podio) == 0 else ("#C0C0C0" if "1" in filas_podio else "#CD7F32")
+            filas_podio += f"<tr style='background-color: {color}44; font-weight: bold;'><td>{i+1}</td><td>{r['NOMBRE Y APELLIDOS']}</td><td>{r['S-1']}</td><td>{r['S-2']}</td><td>{r['S-3']}</td><td>{r['S-4']}</td><td>{r['TOTAL']}</td></tr>"
+
+        # Filas del Resto
+        filas_resto = ""
+        for idx, r in enumerate(df_resto.values):
+            filas_resto += f"<tr><td>{idx+4}</td><td>{r[4]}</td><td>{r[10]}</td><td>{r[11]}</td><td>{r[12]}</td><td>{r[13]}</td><td>{r[14]}</td></tr>"
+
+        return f"""
+        <style>
+            table {{ width: 100%; border-collapse: collapse; font-family: sans-serif; }}
+            th, td {{ padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }}
+            th {{ background-color: #262730; color: white; position: sticky; top: 0; }}
+            .scroll-container {{ height: 400px; overflow: hidden; position: relative; }}
+        </style>
         
-        # Aplicar colores a las series y total
-        for col in ["S-1", "S-2", "S-3", "S-4", "TOTAL"]:
-            val = row[col]
-            clase = ""
-            if val == 25: clase = ' class="text-25"'
-            elif val == 24: clase = ' class="text-24"'
-            html += f"<td{clase}>{val}</td>"
-        html += "</tr>"
-    
-    html += "</tbody></table>"
-    st.write(html, unsafe_allow_html=True)
+        <table>
+            <thead>
+                <tr><th>Pos</th><th>Nombre</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>Total</th></tr>
+            </thead>
+            <tbody>
+                {filas_podio}
+            </tbody>
+        </table>
+        
+        <div id="scroll-box" class="scroll-container">
+            <table id="tabla-movil">
+                <tbody>
+                    {filas_resto}
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+            const box = document.getElementById('scroll-box');
+            let speed = 1;
+            let paused = false;
+            
+            function doScroll() {{
+                if(!paused) {{
+                    box.scrollTop += speed;
+                    if(box.scrollTop >= box.scrollHeight - box.clientHeight) {{
+                        box.scrollTop = 0;
+                    }}
+                }}
+            }}
+            let interval = setInterval(doScroll, 40);
+            
+            box.onmouseover = () => {{ paused = true; }};
+            box.onmouseout = () => {{ paused = false; }};
+        </script>
+        """
+
+    # Renderizar la tabla personalizada
+    components.html(generar_html_tabla(podio, resto), height=600)
 
 except Exception as e:
-    st.error(f"Error técnico: {e}")
-    st.info("Revisa que el archivo se llame 'RESULTADOS WEB.xlsm' en GitHub.")
+    st.error(f"Error: {e}")
