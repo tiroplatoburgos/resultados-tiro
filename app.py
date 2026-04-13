@@ -2,169 +2,163 @@ import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
 
-# 1. CONFIGURACIÓN DE PÁGINA Y ESTILO
+# 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="Resultados Tiro al Plato", layout="wide")
 
+# Estilos CSS Profesionales
 st.markdown("""
     <style>
-    /* Botones de Categorías (Grandes) */
+    /* Botones de Categorías y Subcategorías */
     .stButton > button {
         width: 100%;
-        border-radius: 8px;
+        border-radius: 5px;
         font-weight: bold;
-        font-size: 18px !important; /* Letra más grande */
-        height: 50px;
-        background-color: #f8f9fa;
-        border: 2px solid #dee2e6;
+        font-size: 16px !important;
+        background-color: #f1f3f5;
+        border: 1px solid #ced4da;
     }
-    /* Botones de Subcategorías (Más pequeños) */
-    div[data-testid="column"] .stButton > button {
-        height: 35px;
-        font-size: 14px !important;
-        margin-top: 5px;
+    /* Estilo para destacar el filtro activo */
+    .stButton > button:active, .stButton > button:focus {
+        background-color: #1f4e78 !important;
+        color: white !important;
     }
-    /* Estética general */
-    .main { background-color: #ffffff; }
+    /* Contenedor principal para centrar la tabla en TV */
+    .reportview-container .main .block-container {
+        max-width: 1000px;
+        padding-top: 2rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# 2. CARGA DE DATOS (Basado exactamente en tu Excel)
+# 2. PROCESAMIENTO DE DATOS (Basado en tu Excel real)
 try:
-    # Leemos la hoja INSCRIPCIONES saltando las 2 primeras filas de título
     df = pd.read_excel("1ª Tirada Año2026.xlsm", sheet_name="INSCRIPCIONES", header=2)
-    df.columns = df.columns.str.strip() # Limpiar espacios
-    
-    # Limpiamos filas vacías basándonos en la columna de Nombres
+    df.columns = df.columns.str.strip()
     df = df.dropna(subset=["NOMBRE Y APELLIDOS"])
 
-    # Convertimos columnas a números enteros (sin decimales)
-    cols_a_entero = ["TOTAL", "S-1", "S-2", "S-3", "S-4", "DORSAL", "CAT. FU"]
-    for col in cols_a_entero:
+    # Limpiar datos numéricos (Sin decimales)
+    cols_entero = ["TOTAL", "S-1", "S-2", "S-3", "S-4", "DORSAL", "CAT. FU"]
+    for col in cols_entero:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
 
-    # Lógica de desempate profesional: Total -> S4 -> S3 -> S2 -> S1 -> Dorsal (menor primero)
+    # Ordenación por reglamento
     df_sorted = df.sort_values(
         by=["TOTAL", "S-4", "S-3", "S-2", "S-1", "DORSAL"],
         ascending=[False, False, False, False, False, True]
     ).reset_index(drop=True)
 
-    # 3. SISTEMA DE FILTROS QUE SÍ FUNCIONA (Session State)
-    if 'c' not in st.session_state: st.session_state.c = "GENERAL"
-    if 's' not in st.session_state: st.session_state.s = "TODOS"
+    # 3. INTERFAZ DE FILTROS
+    if 'cat_f' not in st.session_state: st.session_state.cat_f = "GENERAL"
+    if 'sub_f' not in st.session_state: st.session_state.sub_f = "TODAS"
 
-    # Botones de Categoría
-    st.write("### 🏆 Filtrar por Categoría")
-    col_c1, col_c2, col_c3, col_c4, col_c5 = st.columns(5)
-    with col_c1: 
-        if st.button("GENERAL"): st.session_state.c = "GENERAL"
-    with col_c2: 
-        if st.button("1ª CAT"): st.session_state.c = 1
-    with col_c3: 
-        if st.button("2ª CAT"): st.session_state.c = 2
-    with col_c4: 
-        if st.button("3ª CAT"): st.session_state.c = 3
-    with col_c5: 
-        if st.button("4ª CAT"): st.session_state.c = 4
+    st.write("### 🏆 CATEGORÍAS")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1: 
+        if st.button("GENERAL"): st.session_state.cat_f = "GENERAL"
+    with c2: 
+        if st.button("1ª CAT"): st.session_state.cat_f = 1
+    with c3: 
+        if st.button("2ª CAT"): st.session_state.cat_f = 2
+    with c4: 
+        if st.button("3ª CAT"): st.session_state.cat_f = 3
+    with c5: 
+        if st.button("4ª CAT"): st.session_state.cat_f = 4
 
-    # Botones de Subcategoría (Según tu Excel real)
-    st.write("#### 👥 Filtrar por Subcategoría")
-    col_s1, col_s2, col_s3, col_s4, col_s5, col_s6 = st.columns(6)
-    map_sub = {"SENIOR": "SR", "DAMAS": "DAM", "JUNIOR": "JR", "VETERANO": "VET", "SUPERVET.": "SV"}
-    
-    with col_s1: 
-        if st.button("TODAS"): st.session_state.s = "TODOS"
-    with col_s2: 
-        if st.button("SENIOR"): st.session_state.s = "SR"
-    with col_s3: 
-        if st.button("DAMAS"): st.session_state.s = "DAM"
-    with col_s4: 
-        if st.button("JUNIOR"): st.session_state.s = "JR"
-    with col_s5: 
-        if st.button("VETERANO"): st.session_state.s = "VET"
-    with col_s6: 
-        if st.button("SUPERVET."): st.session_state.s = "SV"
+    st.write("#### 👥 SUBCATEGORÍAS")
+    s1, s2, s3, s4, s5 = st.columns(5)
+    # Mapeo exacto según tu Excel: SR, DAM, JR, VET
+    with s1: 
+        if st.button("TODAS"): st.session_state.sub_f = "TODAS"
+    with s2: 
+        if st.button("SENIOR"): st.session_state.sub_f = "SR"
+    with s3: 
+        if st.button("DAMAS"): st.session_state.sub_f = "DM"
+    with s4: 
+        if st.button("JUNIOR"): st.session_state.sub_f = "JR"
+    with s5: 
+        if st.button("VETERANO"): st.session_state.sub_f = "VET"
 
-    # Aplicar Filtros Dinámicos
-    df_f = df_sorted.copy()
-    if st.session_state.c != "GENERAL":
-        df_f = df_f[df_f["CAT. FU"] == st.session_state.c]
-    if st.session_state.s != "TODOS":
-        df_f = df_f[df_f["SUBC"] == st.session_state.s]
+    # Filtrado
+    df_final = df_sorted.copy()
+    if st.session_state.cat_f != "GENERAL":
+        df_final = df_final[df_final["CAT. FU"] == st.session_state.cat_f]
+    if st.session_state.sub_f != "TODAS":
+        df_final = df_final[df_final["SUBC"] == st.session_state.sub_f]
 
-    st.info(f"Mostrando: Categoría {st.session_state.c} | Subcategoría {st.session_state.s}")
+    # 4. TABLA CONSTRUIDA A MEDIDA (HTML/JS)
+    podio = df_final.head(3)
+    resto = df_final.iloc[3:]
 
-    # 4. TABLA PROFESIONAL (Podio Fijo + Scroll 20 filas)
-    podio = df_f.head(3)
-    resto = df_f.iloc[3:]
-
-    def html_completo(p, r):
-        # Cabecera con letra más grande
-        header = """
-        <tr style='background:#1f4e78; color:white; font-size: 16px;'>
-            <th style='width:40px'>Pos</th>
-            <th style='width:40px'>Dor</th>
-            <th>Nombre y Apellidos</th>
-            <th style='width:40px'>Cat</th>
-            <th style='width:45px'>Sub</th>
-            <th style='width:35px'>S1</th><th style='width:35px'>S2</th>
-            <th style='width:35px'>S3</th><th style='width:35px'>S4</th>
-            <th style='width:50px'>Tot</th>
-        </tr>"""
+    def render_tv_table(p, r):
+        # Definición de anchos fijos para alineación perfecta
+        # Pos(50) + Dor(50) + Nom(300) + Cat(50) + Sub(50) + S1-4(40x4) + Tot(60) = 720px total aprox.
         
-        # Filas Podio
-        p_rows = ""
-        colors = ["#FFD700", "#C0C0C0", "#CD7F32"] # Oro, Plata, Bronce
-        for idx, row in p.iterrows():
-            p_rows += f"<tr style='background:{colors[idx]}33; font-weight:bold; font-size:15px;'>"
-            p_rows += f"<td>{idx+1}º</td><td>{row['DORSAL']}</td><td>{row['NOMBRE Y APELLIDOS']}</td>"
-            p_rows += f"<td>{row['CAT. FU']}</td><td>{row['SUBC']}</td>"
-            p_rows += f"<td>{row['S-1']}</td><td>{row['S-2']}</td><td>{row['S-3']}</td><td>{row['S-4']}</td>"
-            p_rows += f"<td style='color:red; font-size:18px;'>{row['TOTAL']}</td></tr>"
-
-        # Filas Scroll (Resto)
-        r_rows = ""
-        for i, row in enumerate(r.values):
-            # i+4 porque el resto empieza en el cuarto puesto
-            r_rows += f"<tr style='font-size:15px;'><td>{i+4}º</td>"
-            r_rows += f"<td>{row[2]}</td>" # Dorsal
-            r_rows += f"<td style='text-align:left;'>{row[4]}</td>" # Nombre
-            r_rows += f"<td>{row[8]}</td>" # Cat
-            r_rows += f"<td>{row[9]}</td>" # Sub
-            r_rows += f"<td>{row[10]}</td><td>{row[11]}</td><td>{row[12]}</td><td>{row[13]}</td>"
-            r_rows += f"<td style='font-weight:bold;'>{row[14]}</td></tr>"
-
-        return f"""
+        style = """
         <style>
-            table {{ width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; table-layout: fixed; }}
-            th, td {{ padding: 12px 4px; border-bottom: 1px solid #eee; text-align: center; }}
-            td:nth-child(3) {{ text-align: left; padding-left: 10px; overflow: hidden; white-space: nowrap; }}
-            .scroll-container {{ height: 600px; overflow: hidden; border: 1px solid #ccc; background: #fff; }}
+            .main-table { width: 900px; margin: auto; border-collapse: collapse; font-family: Arial, sans-serif; table-layout: fixed; }
+            th, td { padding: 10px 5px; text-align: center; border-bottom: 1px solid #eee; font-size: 17px; }
+            .col-pos { width: 50px; } .col-dor { width: 50px; } .col-nom { width: 320px; text-align: left; }
+            .col-cat { width: 60px; } .col-sub { width: 60px; } .col-s { width: 45px; } .col-tot { width: 65px; }
+            
+            thead tr { background-color: #1f4e78; color: white; }
+            .row-podio { font-weight: bold; background-color: #f8f9fa; }
+            .oro { background-color: rgba(255, 215, 0, 0.2); }
+            .plata { background-color: rgba(192, 192, 192, 0.2); }
+            .bronce { background-color: rgba(205, 127, 50, 0.2); }
+            
+            .scroll-window { width: 900px; margin: auto; height: 600px; overflow: hidden; border: 1px solid #ddd; }
+            .total-bold { font-weight: bold; color: #d9534f; font-size: 19px; }
         </style>
-        <table>{header}<tbody>{p_rows}</tbody></table>
-        <div class="scroll-container" id="scr">
-            <table><tbody>{r_rows}</tbody></table>
-        </div>
-        <script>
-            var box = document.getElementById('scr');
-            var speed = 1;
-            var pause = false;
-            function auto() {{
-                if(!pause) {{
-                    box.scrollTop += speed;
-                    if(box.scrollTop >= box.scrollHeight - box.clientHeight) box.scrollTop = 0;
-                }}
-            }}
-            var loop = setInterval(auto, 45);
-            box.onmouseover = () => pause = true;
-            box.onmouseout = () => pause = false;
-            box.ontouchstart = () => pause = true;
-        </script>
         """
 
-    # Renderizamos con altura suficiente para 20 personas
-    components.html(html_completo(podio, resto), height=850)
+        # Cabecera
+        html = style + "<table class='main-table'><thead><tr>"
+        html += "<th class='col-pos'>Pos</th><th class='col-dor'>Dor</th><th class='col-nom'>Tirador</th>"
+        html += "<th class='col-cat'>Cat</th><th class='col-sub'>Sub</th>"
+        html += "<th class='col-s'>S1</th><th class='col-s'>S2</th><th class='col-s'>S3</th><th class='col-s'>S4</th>"
+        html += "<th class='col-tot'>Tot</th></tr></thead><tbody>"
+
+        # Filas del Podio
+        podio_colors = ["oro", "plata", "bronce"]
+        for i, row in p.iterrows():
+            cls = podio_colors[i] if i < 3 else ""
+            html += f"<tr class='row-podio {cls}'>"
+            html += f"<td class='col-pos'>{i+1}º</td><td class='col-dor'>{row['DORSAL']}</td><td class='col-nom'>{row['NOMBRE Y APELLIDOS']}</td>"
+            html += f"<td class='col-cat'>{row['CAT. FU']}</td><td class='col-sub'>{row['SUBC']}</td>"
+            html += f"<td class='col-s'>{row['S-1']}</td><td class='col-s'>{row['S-2']}</td><td class='col-s'>{row['S-3']}</td><td class='col-s'>{row['S-4']}</td>"
+            html += f"<td class='col-tot total-bold'>{row['TOTAL']}</td></tr>"
+        html += "</tbody></table>"
+
+        # Ventana de Scroll
+        html += "<div class='scroll-window' id='win'><table class='main-table'><tbody>"
+        for i, row in enumerate(r.values):
+            html += "<tr>"
+            html += f"<td class='col-pos'>{i+4}º</td><td class='col-dor'>{row[2]}</td><td class='col-nom'>{row[4]}</td>"
+            html += f"<td class='col-cat'>{row[8]}</td><td class='col-sub'>{row[9]}</td>"
+            html += f"<td class='col-s'>{row[10]}</td><td class='col-s'>{row[11]}</td><td class='col-s'>{row[12]}</td><td class='col-s'>{row[13]}</td>"
+            html += f"<td class='col-tot' style='font-weight:bold;'>{row[14]}</td></tr>"
+        html += "</tbody></table></div>"
+
+        # JavaScript para Scroll Lento (60ms)
+        html += """
+        <script>
+            var w = document.getElementById('win');
+            var p = false;
+            function scroll() {
+                if(!p) {
+                    w.scrollTop += 1;
+                    if(w.scrollTop >= (w.scrollHeight - w.clientHeight)) { w.scrollTop = 0; }
+                }
+            }
+            setInterval(scroll, 60);
+            w.onmouseover = function() { p = true; };
+            w.onmouseout = function() { p = false; };
+        </script>
+        """
+        return html
+
+    components.html(render_tv_table(podio, resto), height=850)
 
 except Exception as e:
-    st.error(f"Error al procesar el Excel: {e}")
-    st.warning("Asegúrate de que el archivo se llame '1ª Tirada Año2026.xlsm' y tenga la hoja 'INSCRIPCIONES'.")
+    st.error(f"Error detectado: {e}")
