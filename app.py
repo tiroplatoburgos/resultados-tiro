@@ -11,7 +11,7 @@ TITULO_TIRADA = "1ª TIRADA AÑO 2026 - MARCADOR OFICIAL"
 
 st.set_page_config(page_title="Marcador Profesional FU", layout="wide")
 
-# CSS para corregir Toggles y Cabecera
+# Estilos CSS de Alta Precisión
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #fdfaf6; }}
@@ -37,14 +37,11 @@ st.markdown(f"""
         text-transform: uppercase;
     }}
 
-    /* Ajuste de Toggles para que no se corten en móvil */
+    /* Ajuste de Toggles */
     div[data-testid="stMarkdownContainer"] p {{
         font-size: 13px !important;
         font-weight: bold;
         white-space: nowrap;
-    }}
-    .stToggle {{
-        margin-bottom: -10px;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -61,7 +58,7 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-# 2. PROCESAMIENTO
+# 2. PROCESAMIENTO DE DATOS
 try:
     df = pd.read_excel("1ª Tirada Año2026.xlsm", sheet_name="INSCRIPCIONES", header=2)
     df.columns = df.columns.str.strip()
@@ -76,8 +73,8 @@ try:
         ascending=[False, False, False, False, False, True]
     ).reset_index(drop=True)
 
-    # 3. FILTROS MULTI-CATEGORÍA
-    st.write("🎯 **FILTROS DE COMPETICIÓN**")
+    # 3. FILTROS MULTI-SELECCIÓN
+    st.write("🎯 **FILTROS DE COMPETICIÓN** (Activa varios para combinar)")
     t_cols = st.columns(9)
     selec_cats, selec_subs = [], []
 
@@ -87,7 +84,6 @@ try:
     for i, (lab, val) in enumerate(c_map.items()):
         with t_cols[i]:
             if st.toggle(lab, key=f"c_{val}"): selec_cats.append(val)
-
     for i, (lab, val) in enumerate(s_map.items()):
         with t_cols[i+5]:
             if st.toggle(lab, key=f"s_{val}"): selec_subs.append(val)
@@ -100,37 +96,41 @@ try:
     podio = df_f.head(3)
     resto = df_f.iloc[3:]
 
-    # 4. TABLA HTML CON ALINEACIÓN ABSOLUTA
+    # 4. TABLA HTML CON RESALTADO DE COLOR
     def build_table(p, r):
-        # Reparto de anchos para incluir las series (S1-S4)
+        # Función interna para el color de las series
+        def get_s_style(val):
+            if val == 25: return "style='color:#d32f2f; font-weight:900;'" # Rojo para pleno
+            if val == 24: return "style='color:#2e7d32; font-weight:900;'" # Verde para 24
+            return "style='color:#666;'"
+
+        # Reparto exacto de anchos
         w = {"pos":"6%", "dor":"6%", "nom":"30%", "cat":"7%", "sub":"7%", "s":"6%", "tot":"10%"}
         
         style = f"""
         <style>
             .tab {{ width: 100%; border-collapse: collapse; table-layout: fixed; background: #fff; font-family: sans-serif; }}
-            th, td {{ padding: 12px 2px; text-align: center; font-size: 15px; border-bottom: 1px solid #eee; overflow: hidden; white-space: nowrap; box-sizing: border-box; }}
-            
+            th, td {{ padding: 12px 2px; text-align: center; font-size: 16px; border-bottom: 1px solid #eee; overflow: hidden; white-space: nowrap; box-sizing: border-box; }}
             .w-pos {{ width: {w['pos']}; }} .w-dor {{ width: {w['dor']}; }} 
-            .w-nom {{ width: {w['nom']}; text-align: left; padding-left: 10px; font-weight: bold; }}
+            .w-nom {{ width: {w['nom']}; text-align: left; padding-left: 12px; font-weight: bold; }}
             .w-cat {{ width: {w['cat']}; }} .w-sub {{ width: {w['sub']}; }} 
-            .w-s {{ width: {w['s']}; font-size: 13px; color: #666; }}
+            .w-s {{ width: {w['s']}; font-size: 15px; }}
             .w-tot {{ width: {w['tot']}; }}
+            thead tr {{ background: #1a365d; color: white; font-size: 14px; }}
             
-            thead tr {{ background: #1a365d; color: white; font-size: 13px; }}
-            
-            /* Bordes de alineación: 8px para todos (coloreado o transparente) */
+            /* Alineación: Borde de 8px en todas las filas */
             .oro {{ background: #fff9c4 !important; border-left: 8px solid #ffd700; }}
             .plata {{ background: #f5f5f5 !important; border-left: 8px solid #c0c0c0; }}
             .bronce {{ background: #efebe9 !important; border-left: 8px solid #cd7f32; }}
             .normal {{ border-left: 8px solid transparent; }}
             
-            .t-red {{ color: #d32f2f; font-weight: 900; font-size: 20px; }}
+            .t-red {{ color: #d32f2f; font-weight: 900; font-size: 22px; }}
             .win {{ height: 850px; overflow: hidden; border: 1px solid #ddd; border-top: none; }}
             
             @media (max-width: 600px) {{
-                td {{ font-size: 12px; padding: 10px 1px; }}
-                .w-s {{ display: table-cell; font-size: 10px; }} /* Forzar series en móvil */
-                .t-red {{ font-size: 15px; }}
+                td {{ font-size: 13px; padding: 10px 1px; }}
+                .w-nom {{ padding-left: 5px; }}
+                .t-red {{ font-size: 18px; }}
             }}
         </style>
         """
@@ -141,25 +141,31 @@ try:
         html += "<th class='w-s'>S1</th><th class='w-s'>S2</th><th class='w-s'>S3</th><th class='w-s'>S4</th>"
         html += "<th class='w-tot'>TOT</th></tr></thead><tbody>"
 
-        # Filas Podio
+        # Podio
         for i, row in p.iterrows():
             cls = ["oro", "plata", "bronce"][i]
             html += f"<tr class='{cls}'>"
             html += f"<td class='w-pos'>{i+1}º</td><td class='w-dor'>{row['DORSAL']}</td><td class='w-nom'>{row['NOMBRE Y APELLIDOS']}</td>"
             html += f"<td class='w-cat'>{row['CAT. FU']}</td><td class='w-sub'>{row['SUBC']}</td>"
-            html += f"<td class='w-s'>{row['S-1']}</td><td class='w-s'>{row['S-2']}</td><td class='w-s'>{row['S-3']}</td><td class='w-s'>{row['S-4']}</td>"
+            html += f"<td class='w-s' {get_s_style(row['S-1'])}>{row['S-1']}</td>"
+            html += f"<td class='w-s' {get_s_style(row['S-2'])}>{row['S-2']}</td>"
+            html += f"<td class='w-s' {get_s_style(row['S-3'])}>{row['S-3']}</td>"
+            html += f"<td class='w-s' {get_s_style(row['S-4'])}>{row['S-4']}</td>"
             html += f"<td class='w-tot t-red'>{row['TOTAL']}</td></tr>"
         
         html += "</tbody></table>"
         html += "<div class='win' id='scrol'><table class='tab'><tbody>"
         
-        # Filas Resto (Con borde transparente para alinear)
+        # Resto con scroll
         for i, row in enumerate(r.values):
             bg = "#ffffff" if i % 2 == 0 else "#f8fafc"
             html += f"<tr class='normal' style='background:{bg};'>"
             html += f"<td class='w-pos'>{i+4}º</td><td class='w-dor'>{row[2]}</td><td class='w-nom'>{row[4]}</td>"
             html += f"<td class='w-cat'>{row[8]}</td><td class='w-sub'>{row[9]}</td>"
-            html += f"<td class='w-s'>{row[10]}</td><td class='w-s'>{row[11]}</td><td class='w-s'>{row[12]}</td><td class='w-s'>{row[13]}</td>"
+            html += f"<td class='w-s' {get_s_style(row[10])}>{row[10]}</td>"
+            html += f"<td class='w-s' {get_s_style(row[11])}>{row[11]}</td>"
+            html += f"<td class='w-s' {get_s_style(row[12])}>{row[12]}</td>"
+            html += f"<td class='w-s' {get_s_style(row[13])}>{row[13]}</td>"
             html += f"<td class='w-tot' style='font-weight:bold; font-size:18px;'>{row[14]}</td></tr>"
 
         html += "</tbody></table></div>"
@@ -175,4 +181,4 @@ try:
     components.html(build_table(podio, resto), height=1100)
 
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Error técnico: {e}")
